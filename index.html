@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Family World Cup Challenge</title>
+<style>
+body{font-family:Arial,sans-serif;background:#07111f;color:white;max-width:900px;margin:auto;padding:16px}
+h1{text-align:center}
+.card{background:#101d2f;border:1px solid #2b3d57;border-radius:16px;padding:14px;margin:14px 0}
+.player{background:#15243a;border-radius:14px;padding:12px;margin:8px 0}
+.leader{border:2px solid gold}
+.points{font-size:32px;font-weight:bold}
+select,input,button{width:100%;padding:12px;margin:6px 0;border-radius:10px;font-size:16px}
+button{background:#5dade2;color:white;border:none;font-weight:bold}
+.green{background:#3ddc97;color:#062015}
+.red{background:#ff6b6b}
+.log{background:#0b1728;border-radius:10px;padding:10px;margin:8px 0;color:#cbd5e1}
+.champ{display:none;background:gold;color:#111;padding:16px;border-radius:14px;text-align:center;font-weight:bold}
+</style>
+</head>
+<body>
+
+<h1>🏆 Family World Cup Challenge</h1>
+
+<div id="championBanner" class="champ"></div>
+
+<div class="card">
+<h2>Leaderboard</h2>
+<ol id="leaderboard"></ol>
+</div>
+
+<div class="card">
+<h2>Family Teams</h2>
+<div id="players"></div>
+</div>
+
+<div class="card">
+<h2>Enter Match Result</h2>
+
+<select id="team">
+<option>Portugal</option>
+<option>Argentina</option>
+<option>France</option>
+<option>Brazil</option>
+<option>Spain</option>
+</select>
+
+<select id="result">
+<option value="3">Win — 3 points</option>
+<option value="1">Draw — 1 point</option>
+<option value="0">Loss — 0 points</option>
+<option value="2">Penalty Shootout Win — 2 points</option>
+<option value="1">Penalty Shootout Loss — 1 point</option>
+</select>
+
+<input id="note" placeholder="Optional note: Portugal beat Mexico 2-0">
+
+<button class="green" onclick="addResult()">Add Result</button>
+</div>
+
+<div class="card">
+<h2>World Cup Winner Rule</h2>
+<select id="championTeam">
+<option value="">Select winning team</option>
+<option>Portugal</option>
+<option>Argentina</option>
+<option>France</option>
+<option>Brazil</option>
+<option>Spain</option>
+</select>
+<button onclick="declareChampion()">Declare Champion</button>
+</div>
+
+<div class="card">
+<h2>Match History</h2>
+<div id="history"></div>
+<button onclick="undoLast()">Undo Last Entry</button>
+<button class="red" onclick="resetGame()">Reset Game</button>
+</div>
+
+<script>
+const family={
+Dad:["🇵🇹 Portugal","🇦🇷 Argentina"],
+Bryson:["🇫🇷 France","🇵🇹 Portugal"],
+Bella:["🇵🇹 Portugal","🇧🇷 Brazil"],
+Mom:["🇪🇸 Spain","🇧🇷 Brazil"]
+};
+
+const owners={
+Portugal:["Dad","Bryson","Bella"],
+Argentina:["Dad"],
+France:["Bryson"],
+Brazil:["Bella","Mom"],
+Spain:["Mom"]
+};
+
+let scores=JSON.parse(localStorage.getItem("scores")||'{"Dad":0,"Bryson":0,"Bella":0,"Mom":0}');
+let history=JSON.parse(localStorage.getItem("history")||"[]");
+let champion=localStorage.getItem("champion")||"";
+
+function save(){
+localStorage.setItem("scores",JSON.stringify(scores));
+localStorage.setItem("history",JSON.stringify(history));
+localStorage.setItem("champion",champion);
+render();
+}
+
+function addResult(){
+let team=document.getElementById("team").value;
+let points=Number(document.getElementById("result").value);
+let resultText=document.getElementById("result").selectedOptions[0].textContent;
+let note=document.getElementById("note").value;
+
+owners[team].forEach(person=>scores[person]+=points);
+
+history.unshift({
+team:team,
+points:points,
+resultText:resultText,
+note:note,
+people:owners[team],
+time:new Date().toLocaleString()
+});
+
+document.getElementById("note").value="";
+save();
+}
+
+function undoLast(){
+if(history.length===0){alert("No entries to undo.");return;}
+let last=history.shift();
+last.people.forEach(person=>scores[person]-=last.points);
+save();
+}
+
+function resetGame(){
+if(!confirm("Reset everything?"))return;
+scores={Dad:0,Bryson:0,Bella:0,Mom:0};
+history=[];
+champion="";
+save();
+}
+
+function declareChampion(){
+let team=document.getElementById("championTeam").value;
+if(!team){alert("Pick a champion team first.");return;}
+champion=team;
+save();
+}
+
+function render(){
+let sorted=Object.entries(scores).sort((a,b)=>b[1]-a[1]);
+let leaderboard=document.getElementById("leaderboard");
+leaderboard.innerHTML="";
+sorted.forEach(([name,pts])=>{
+let li=document.createElement("li");
+li.textContent=name+" — "+pts+" points";
+leaderboard.appendChild(li);
+});
+
+let topScore=sorted[0][1];
+let players=document.getElementById("players");
+players.innerHTML="";
+Object.keys(family).forEach(name=>{
+let div=document.createElement("div");
+div.className="player"+(scores[name]===topScore&&topScore>0?" leader":"");
+div.innerHTML="<h3>"+name+"</h3>"+
+"<div>"+family[name].join("<br>")+"</div>"+
+"<div class='points'>"+scores[name]+"</div>";
+players.appendChild(div);
+});
+
+let hist=document.getElementById("history");
+hist.innerHTML=history.length?"":"No match results yet.";
+history.forEach(item=>{
+let div=document.createElement("div");
+div.className="log";
+div.innerHTML="<b>"+item.team+"</b>: "+item.resultText+"<br>"+
+"+"+item.points+" to "+item.people.join(", ")+"<br>"+
+(item.note?item.note+"<br>":"")+
+"<small>"+item.time+"</small>";
+hist.appendChild(div);
+});
+
+let banner=document.getElementById("championBanner");
+if(champion){
+banner.style.display="block";
+banner.innerHTML="🏆 "+champion+" won the World Cup!<br>"+
+owners[champion].join(", ")+" automatically win!";
+}else{
+banner.style.display="none";
+}
+}
+
+render();
+</script>
+
+</body>
+</html>
